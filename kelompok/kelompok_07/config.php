@@ -41,6 +41,7 @@ function getConnection() {
                 deadline DATE NOT NULL,
                 category VARCHAR(100),
                 image_url VARCHAR(500),
+                qris_image VARCHAR(500),
                 video_url VARCHAR(500),
                 status ENUM('active', 'closed', 'completed') DEFAULT 'active',
                 created_by INT,
@@ -49,6 +50,14 @@ function getConnection() {
                 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
             )";
             $conn->query($createCampaigns);
+            
+            // Tambahkan kolom qris_image jika belum ada (untuk database yang sudah ada)
+            // Cek apakah kolom sudah ada
+            $checkQrisColumn = $conn->query("SHOW COLUMNS FROM campaigns LIKE 'qris_image'");
+            if (!$checkQrisColumn || $checkQrisColumn->num_rows == 0) {
+                // Kolom belum ada, tambahkan
+                $conn->query("ALTER TABLE campaigns ADD COLUMN qris_image VARCHAR(500) DEFAULT NULL AFTER image_url");
+            }
             
             // Buat tabel donations
             $createDonations = "CREATE TABLE IF NOT EXISTS donations (

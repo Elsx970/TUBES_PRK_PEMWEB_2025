@@ -10,6 +10,23 @@ requireAdmin();
     <title>Dashboard Admin - CareU</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom scrollbar untuk modal */
+        #campaignModal .overflow-y-auto::-webkit-scrollbar {
+            width: 8px;
+        }
+        #campaignModal .overflow-y-auto::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        #campaignModal .overflow-y-auto::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        #campaignModal .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
     <!-- Navbar -->
@@ -110,10 +127,10 @@ requireAdmin();
     </div>
 
     <!-- Campaign Modal -->
-    <div id="campaignModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-        <div class="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 my-8">
+    <div id="campaignModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-8">
+        <div class="bg-white rounded-lg p-8 max-w-2xl w-full mx-4 my-auto max-h-[90vh] overflow-y-auto">
             <h2 id="modalTitle" class="text-2xl font-bold mb-4">Buat Campaign Baru</h2>
-            <form id="campaignForm" class="space-y-4">
+            <form id="campaignForm" class="space-y-4" novalidate>
                 <input type="hidden" id="campaignId" name="id">
                 
                 <div>
@@ -160,22 +177,34 @@ requireAdmin();
                 </div>
                 
                 <div>
-                    <label class="block text-gray-700 font-medium mb-2">URL Gambar</label>
-                    <input type="url" name="image_url"
+                    <label class="block text-gray-700 font-medium mb-2">Gambar Campaign</label>
+                    <input type="file" name="image_file" id="campaignImageFile" accept="image/*"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <p class="text-xs text-gray-500 mt-1">Format: JPG, PNG, GIF, WEBP (Maksimal 5MB)</p>
+                    <div id="currentImagePreview" class="mt-2 hidden">
+                        <p class="text-sm text-gray-600 mb-2">Gambar saat ini:</p>
+                        <img id="currentImage" src="" alt="Current image" class="max-w-xs rounded-lg border border-gray-300">
+                        <p class="text-xs text-gray-500 mt-1">Upload gambar baru untuk mengganti</p>
+                    </div>
                 </div>
                 
                 <div>
-                    <label class="block text-gray-700 font-medium mb-2">URL Video (opsional)</label>
-                    <input type="url" name="video_url"
+                    <label class="block text-gray-700 font-medium mb-2">Foto QRIS</label>
+                    <input type="file" name="qris_file" id="campaignQrisFile" accept="image/*"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <p class="text-xs text-gray-500 mt-1">Format: JPG, PNG, GIF, WEBP (Maksimal 5MB)</p>
+                    <div id="currentQrisPreview" class="mt-2 hidden">
+                        <p class="text-sm text-gray-600 mb-2">QRIS saat ini:</p>
+                        <img id="currentQris" src="" alt="Current QRIS" class="max-w-xs rounded-lg border border-gray-300">
+                        <p class="text-xs text-gray-500 mt-1">Upload QRIS baru untuk mengganti</p>
+                    </div>
                 </div>
                 
                 <div class="flex space-x-4">
                     <button type="submit" class="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700">
                         Simpan
                     </button>
-                    <button type="button" onclick="closeCampaignModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400">
+                    <button type="button" id="cancelCampaignBtn" onclick="closeCampaignModal(); return false;" class="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400">
                         Batal
                     </button>
                 </div>

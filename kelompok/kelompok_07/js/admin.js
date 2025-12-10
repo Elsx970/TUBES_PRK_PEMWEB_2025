@@ -46,7 +46,7 @@ async function loadCampaigns() {
                             </div>
                         </div>
                         <div class="flex space-x-2">
-                            <button onclick="editCampaign(${campaign.id})" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm">
+                            <button onclick="openCampaignModal(${campaign.id})" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm">
                                 Edit
                             </button>
                             <button onclick="addUpdate(${campaign.id})" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 text-sm">
@@ -112,10 +112,30 @@ async function loadDonations() {
                         </div>
                         ${donation.proof_image ? `
                             <div class="mb-4">
-                                <p class="text-sm text-gray-600 mb-2">Bukti Pembayaran:</p>
-                                <img src="../${donation.proof_image}" class="max-w-xs rounded-lg border border-gray-200">
+                                <p class="text-sm text-gray-600 mb-2 font-medium">Bukti Pembayaran:</p>
+                                <div class="relative inline-block">
+                                    <a href="../${donation.proof_image}" target="_blank" class="block">
+                                        <img src="../${donation.proof_image}" 
+                                             alt="Bukti Pembayaran" 
+                                             class="max-w-xs rounded-lg border-2 border-gray-300 hover:border-indigo-500 hover:opacity-90 cursor-pointer transition-all duration-200"
+                                             onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                        <div class="hidden max-w-xs rounded-lg border-2 border-red-300 bg-red-50 p-4 text-center">
+                                            <p class="text-sm text-red-600 font-medium">Gambar tidak dapat dimuat</p>
+                                            <p class="text-xs text-red-500 mt-1">Path: ${donation.proof_image}</p>
+                                        </div>
+                                    </a>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    <span class="inline-flex items-center">
+                                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        </svg>
+                                        Klik gambar untuk melihat ukuran penuh
+                                    </span>
+                                </p>
                             </div>
-                        ` : ''}
+                        ` : '<p class="text-sm text-gray-500 italic mb-4">Tidak ada bukti pembayaran diunggah</p>'}
                         ${donation.status === 'pending' ? `
                             <div class="flex space-x-2">
                                 <button onclick="verifyDonation(${donation.id}, 'verified')" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 text-sm">
@@ -139,18 +159,57 @@ async function loadDonations() {
 
 // Campaign Modal Functions
 function openCampaignModal(id = null) {
-    document.getElementById('campaignModal').classList.remove('hidden');
-    document.getElementById('campaignForm').reset();
-    document.getElementById('campaignId').value = '';
-    document.getElementById('modalTitle').textContent = id ? 'Edit Campaign' : 'Buat Campaign Baru';
+    const modal = document.getElementById('campaignModal');
+    const form = document.getElementById('campaignForm');
     
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+    
+    // Set title dulu
+    const modalTitle = document.getElementById('modalTitle');
+    if (modalTitle) {
+        modalTitle.textContent = id ? 'Edit Campaign' : 'Buat Campaign Baru';
+    }
+    
+    if (form) {
+        form.reset();
+        document.getElementById('campaignId').value = '';
+        // Hide current image preview
+        const currentImagePreview = document.getElementById('currentImagePreview');
+        if (currentImagePreview) {
+            currentImagePreview.classList.add('hidden');
+        }
+        // Hide current QRIS preview
+        const currentQrisPreview = document.getElementById('currentQrisPreview');
+        if (currentQrisPreview) {
+            currentQrisPreview.classList.add('hidden');
+        }
+    }
+    
+    // Jika edit, load data setelah form di-reset
     if (id) {
-        editCampaign(id);
+        // Gunakan setTimeout untuk memastikan form sudah di-reset dulu
+        setTimeout(() => {
+            editCampaign(id);
+        }, 10);
     }
 }
 
 function closeCampaignModal() {
-    document.getElementById('campaignModal').classList.add('hidden');
+    const modal = document.getElementById('campaignModal');
+    const form = document.getElementById('campaignForm');
+    
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    if (form) {
+        form.reset();
+        const campaignId = document.getElementById('campaignId');
+        const modalTitle = document.getElementById('modalTitle');
+        if (campaignId) campaignId.value = '';
+        if (modalTitle) modalTitle.textContent = 'Buat Campaign Baru';
+    }
 }
 
 async function editCampaign(id) {
@@ -167,39 +226,129 @@ async function editCampaign(id) {
             document.getElementById('campaignForm').querySelector('[name="target_amount"]').value = campaign.target_amount;
             document.getElementById('campaignForm').querySelector('[name="deadline"]').value = campaign.deadline;
             document.getElementById('campaignForm').querySelector('[name="category"]').value = campaign.category || '';
-            document.getElementById('campaignForm').querySelector('[name="image_url"]').value = campaign.image_url || '';
-            document.getElementById('campaignForm').querySelector('[name="video_url"]').value = campaign.video_url || '';
-            openCampaignModal(id);
+            
+            // Tampilkan preview gambar saat ini jika ada
+            const currentImagePreview = document.getElementById('currentImagePreview');
+            const currentImage = document.getElementById('currentImage');
+            const imageFileInput = document.getElementById('campaignImageFile');
+            
+            if (campaign.image_url) {
+                currentImage.src = '../' + campaign.image_url;
+                currentImagePreview.classList.remove('hidden');
+            } else {
+                currentImagePreview.classList.add('hidden');
+            }
+            
+            // Reset file input
+            if (imageFileInput) {
+                imageFileInput.value = '';
+            }
+            
+            // Tampilkan preview QRIS saat ini jika ada
+            const currentQrisPreview = document.getElementById('currentQrisPreview');
+            const currentQris = document.getElementById('currentQris');
+            const qrisFileInput = document.getElementById('campaignQrisFile');
+            
+            if (campaign.qris_image) {
+                currentQris.src = '../' + campaign.qris_image;
+                currentQrisPreview.classList.remove('hidden');
+            } else {
+                currentQrisPreview.classList.add('hidden');
+            }
+            
+            // Reset QRIS file input
+            if (qrisFileInput) {
+                qrisFileInput.value = '';
+            }
         }
     } catch (error) {
         alert('Error memuat data campaign');
+        closeCampaignModal();
     }
 }
 
 // Save campaign
-document.getElementById('campaignForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    formData.append('action', formData.get('id') ? 'update_campaign' : 'create_campaign');
-    
-    try {
-        const response = await fetch('../api/admin.php', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert('Campaign berhasil disimpan');
-            closeCampaignModal();
-            loadCampaigns();
-            loadDashboardStats();
-        } else {
-            alert(data.message || 'Gagal menyimpan campaign');
+document.addEventListener('DOMContentLoaded', () => {
+    const campaignForm = document.getElementById('campaignForm');
+    if (campaignForm) {
+        // Preview gambar yang dipilih
+        const imageFileInput = document.getElementById('campaignImageFile');
+        if (imageFileInput) {
+            imageFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const currentImage = document.getElementById('currentImage');
+                        const currentImagePreview = document.getElementById('currentImagePreview');
+                        if (currentImage && currentImagePreview) {
+                            currentImage.src = e.target.result;
+                            currentImagePreview.classList.remove('hidden');
+                            currentImagePreview.querySelector('p').textContent = 'Gambar yang akan diupload:';
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
         }
-    } catch (error) {
-        alert('Terjadi kesalahan');
+        
+        // Preview QRIS yang dipilih
+        const qrisFileInput = document.getElementById('campaignQrisFile');
+        if (qrisFileInput) {
+            qrisFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const currentQris = document.getElementById('currentQris');
+                        const currentQrisPreview = document.getElementById('currentQrisPreview');
+                        if (currentQris && currentQrisPreview) {
+                            currentQris.src = e.target.result;
+                            currentQrisPreview.classList.remove('hidden');
+                            currentQrisPreview.querySelector('p').textContent = 'QRIS yang akan diupload:';
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        
+        campaignForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            formData.append('action', formData.get('id') ? 'update_campaign' : 'create_campaign');
+            
+            try {
+                const response = await fetch('../api/admin.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Campaign berhasil disimpan');
+                    closeCampaignModal();
+                    loadCampaigns();
+                    loadDashboardStats();
+                } else {
+                    alert(data.message || 'Gagal menyimpan campaign');
+                }
+            } catch (error) {
+                alert('Terjadi kesalahan');
+            }
+        });
+    }
+    
+    // Event listener untuk tombol batal
+    const cancelBtn = document.getElementById('cancelCampaignBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeCampaignModal();
+            return false;
+        });
     }
 });
 

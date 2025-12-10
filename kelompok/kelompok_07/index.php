@@ -6,7 +6,7 @@ require_once 'config.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CareU - Platform Crowdfunding Mahasiswa</title>
+    <title>CareU - Platform Crowdfunding</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50">
@@ -38,7 +38,7 @@ require_once 'config.php';
     <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 class="text-4xl font-bold mb-4">Bersama Membantu, Bersama Peduli</h1>
-            <p class="text-xl mb-8">Platform crowdfunding untuk membantu sesama mahasiswa</p>
+            <p class="text-xl mb-8">Platform crowdfunding untuk membantu sesama</p>
         </div>
     </div>
 

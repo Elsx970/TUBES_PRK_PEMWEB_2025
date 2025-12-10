@@ -21,8 +21,20 @@ async function loadCampaigns() {
                 
                 const card = document.createElement('div');
                 card.className = 'bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-200';
+                // Check if image_url is a URL or local path
+                let imageSrc = '';
+                if (campaign.image_url) {
+                    if (campaign.image_url.startsWith('http://') || campaign.image_url.startsWith('https://')) {
+                        imageSrc = campaign.image_url; // External URL
+                    } else {
+                        imageSrc = campaign.image_url; // Local path (uploads/campaigns/...)
+                    }
+                }
+                
                 card.innerHTML = `
-                    ${campaign.image_url ? `<img src="${campaign.image_url}" alt="${campaign.title}" class="w-full h-48 object-cover">` : '<div class="w-full h-48 bg-gray-200 flex items-center justify-center text-gray-400">No Image</div>'}
+                    ${imageSrc ? `<div class="w-full aspect-video bg-gray-100 flex items-center justify-center overflow-hidden rounded-t-lg">
+                        <img src="${imageSrc}" alt="${campaign.title}" class="w-full h-full object-contain">
+                    </div>` : '<div class="w-full aspect-video bg-gray-200 flex items-center justify-center text-gray-400 rounded-t-lg">No Image</div>'}
                     <div class="p-6">
                         <h3 class="text-xl font-bold mb-2 text-gray-800">${campaign.title}</h3>
                         <p class="text-gray-600 mb-4 line-clamp-2">${campaign.description.substring(0, 100)}...</p>
@@ -76,8 +88,20 @@ async function loadCampaignDetail(id) {
             const progress = (campaign.current_amount / campaign.target_amount * 100).toFixed(1);
             const daysLeft = Math.ceil((new Date(campaign.deadline) - new Date()) / (1000 * 60 * 60 * 24));
             
+            // Check if image_url is a URL or local path
+            let imageSrc = '';
+            if (campaign.image_url) {
+                if (campaign.image_url.startsWith('http://') || campaign.image_url.startsWith('https://')) {
+                    imageSrc = campaign.image_url; // External URL
+                } else {
+                    imageSrc = campaign.image_url; // Local path (uploads/campaigns/...)
+                }
+            }
+            
             container.innerHTML = `
-                ${campaign.image_url ? `<img src="${campaign.image_url}" alt="${campaign.title}" class="w-full h-96 object-cover rounded-lg mb-6">` : ''}
+                ${imageSrc ? `<div class="w-full bg-gray-100 rounded-lg mb-6 overflow-hidden flex items-center justify-center" style="min-height: 300px;">
+                    <img src="${imageSrc}" alt="${campaign.title}" class="max-w-full max-h-[600px] object-contain rounded-lg">
+                </div>` : ''}
                 
                 <h1 class="text-3xl font-bold mb-4 text-gray-800">${campaign.title}</h1>
                 
@@ -136,6 +160,19 @@ async function loadCampaignDetail(id) {
                             <p class="text-xs text-gray-500">${new Date(report.created_at).toLocaleDateString('id-ID')}</p>
                         </div>
                     `).join('')}
+                </div>
+                ` : ''}
+                
+                ${campaign.qris_image ? `
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold mb-4">QRIS untuk Donasi</h2>
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-3">Scan QRIS berikut untuk melakukan donasi:</p>
+                        <div class="flex justify-center">
+                            <img src="${campaign.qris_image}" alt="QRIS" class="max-w-xs rounded-lg border-2 border-gray-300 shadow-md">
+                        </div>
+                        <p class="text-xs text-gray-500 mt-3 text-center">Gunakan aplikasi pembayaran digital untuk scan QRIS</p>
+                    </div>
                 </div>
                 ` : ''}
                 

@@ -16,16 +16,42 @@ if ($action === 'create') {
     // Handle file upload
     $proof_image = '';
     if (isset($_FILES['proof_image']) && $_FILES['proof_image']['error'] === 0) {
-        $uploadDir = 'uploads/proofs/';
+        // Path relatif dari api/ ke root project
+        $uploadDir = '../uploads/proofs/';
         if (!file_exists($uploadDir)) {
             mkdir($uploadDir, 0777, true);
         }
         
-        $fileName = time() . '_' . basename($_FILES['proof_image']['name']);
+        // Validasi file type
+        $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        $fileType = $_FILES['proof_image']['type'];
+        
+        if (!in_array($fileType, $allowedTypes)) {
+            echo json_encode(['success' => false, 'message' => 'Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WEBP']);
+            $conn->close();
+            exit;
+        }
+        
+        // Validasi file size (max 5MB)
+        $maxSize = 5 * 1024 * 1024; // 5MB
+        if ($_FILES['proof_image']['size'] > $maxSize) {
+            echo json_encode(['success' => false, 'message' => 'Ukuran file terlalu besar. Maksimal 5MB']);
+            $conn->close();
+            exit;
+        }
+        
+        // Generate unique filename
+        $fileExtension = pathinfo($_FILES['proof_image']['name'], PATHINFO_EXTENSION);
+        $fileName = time() . '_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', basename($_FILES['proof_image']['name'], '.' . $fileExtension)) . '.' . $fileExtension;
         $targetPath = $uploadDir . $fileName;
         
         if (move_uploaded_file($_FILES['proof_image']['tmp_name'], $targetPath)) {
-            $proof_image = $targetPath;
+            // Simpan path relatif dari root (tanpa ../)
+            $proof_image = 'uploads/proofs/' . $fileName;
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Gagal mengupload file. Pastikan folder uploads/proofs/ memiliki permission write']);
+            $conn->close();
+            exit;
         }
     }
     

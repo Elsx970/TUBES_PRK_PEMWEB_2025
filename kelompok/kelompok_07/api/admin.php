@@ -71,13 +71,94 @@ elseif ($action === 'create_campaign') {
     $target_amount = $_POST['target_amount'] ?? 0;
     $deadline = $_POST['deadline'] ?? '';
     $category = $_POST['category'] ?? '';
-    $image_url = $_POST['image_url'] ?? '';
-    $video_url = $_POST['video_url'] ?? '';
+    $video_url = ''; // Field video_url dihapus, set ke empty string
     $created_by = $_SESSION['user_id'];
     
-    $stmt = $conn->prepare("INSERT INTO campaigns (title, description, background, target_amount, deadline, category, image_url, video_url, created_by, status) 
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')");
-    $stmt->bind_param("sssdssssi", $title, $description, $background, $target_amount, $deadline, $category, $image_url, $video_url, $created_by);
+    // Handle file upload
+    $image_url = '';
+    if (isset($_FILES['image_file']) && $_FILES['image_file']['error'] === 0) {
+        $uploadDir = '../uploads/campaigns/';
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+        
+        // Validasi file type
+        $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        $fileType = $_FILES['image_file']['type'];
+        
+        if (!in_array($fileType, $allowedTypes)) {
+            echo json_encode(['success' => false, 'message' => 'Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WEBP']);
+            $conn->close();
+            exit;
+        }
+        
+        // Validasi file size (max 5MB)
+        $maxSize = 5 * 1024 * 1024; // 5MB
+        if ($_FILES['image_file']['size'] > $maxSize) {
+            echo json_encode(['success' => false, 'message' => 'Ukuran file terlalu besar. Maksimal 5MB']);
+            $conn->close();
+            exit;
+        }
+        
+        // Generate unique filename
+        $fileExtension = pathinfo($_FILES['image_file']['name'], PATHINFO_EXTENSION);
+        $fileName = time() . '_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', basename($_FILES['image_file']['name'], '.' . $fileExtension)) . '.' . $fileExtension;
+        $targetPath = $uploadDir . $fileName;
+        
+        if (move_uploaded_file($_FILES['image_file']['tmp_name'], $targetPath)) {
+            // Simpan path relatif dari root (tanpa ../)
+            $image_url = 'uploads/campaigns/' . $fileName;
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Gagal mengupload gambar. Pastikan folder uploads/campaigns/ memiliki permission write']);
+            $conn->close();
+            exit;
+        }
+    }
+    
+    // Handle QRIS file upload
+    $qris_image = '';
+    if (isset($_FILES['qris_file']) && $_FILES['qris_file']['error'] === 0) {
+        $uploadDir = '../uploads/campaigns/';
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+        
+        // Validasi file type
+        $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        $fileType = $_FILES['qris_file']['type'];
+        
+        if (!in_array($fileType, $allowedTypes)) {
+            echo json_encode(['success' => false, 'message' => 'Format file QRIS tidak didukung. Gunakan JPG, PNG, GIF, atau WEBP']);
+            $conn->close();
+            exit;
+        }
+        
+        // Validasi file size (max 5MB)
+        $maxSize = 5 * 1024 * 1024; // 5MB
+        if ($_FILES['qris_file']['size'] > $maxSize) {
+            echo json_encode(['success' => false, 'message' => 'Ukuran file QRIS terlalu besar. Maksimal 5MB']);
+            $conn->close();
+            exit;
+        }
+        
+        // Generate unique filename
+        $fileExtension = pathinfo($_FILES['qris_file']['name'], PATHINFO_EXTENSION);
+        $fileName = 'qris_' . time() . '_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', basename($_FILES['qris_file']['name'], '.' . $fileExtension)) . '.' . $fileExtension;
+        $targetPath = $uploadDir . $fileName;
+        
+        if (move_uploaded_file($_FILES['qris_file']['tmp_name'], $targetPath)) {
+            // Simpan path relatif dari root (tanpa ../)
+            $qris_image = 'uploads/campaigns/' . $fileName;
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Gagal mengupload QRIS. Pastikan folder uploads/campaigns/ memiliki permission write']);
+            $conn->close();
+            exit;
+        }
+    }
+    
+    $stmt = $conn->prepare("INSERT INTO campaigns (title, description, background, target_amount, deadline, category, image_url, qris_image, video_url, created_by, status) 
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')");
+    $stmt->bind_param("sssdsssssi", $title, $description, $background, $target_amount, $deadline, $category, $image_url, $qris_image, $video_url, $created_by);
     
     if ($stmt->execute()) {
         echo json_encode(['success' => true, 'message' => 'Campaign berhasil dibuat']);
@@ -95,16 +176,130 @@ elseif ($action === 'update_campaign') {
     $target_amount = $_POST['target_amount'] ?? 0;
     $deadline = $_POST['deadline'] ?? '';
     $category = $_POST['category'] ?? '';
-    $image_url = $_POST['image_url'] ?? '';
-    $video_url = $_POST['video_url'] ?? '';
+    $video_url = ''; // Field video_url dihapus, set ke empty string
     
-    $stmt = $conn->prepare("UPDATE campaigns SET title = ?, description = ?, background = ?, target_amount = ?, deadline = ?, category = ?, image_url = ?, video_url = ? WHERE id = ?");
-    $stmt->bind_param("sssdssssi", $title, $description, $background, $target_amount, $deadline, $category, $image_url, $video_url, $id);
+    // Get current image_url and qris_image first
+    // Cek apakah kolom qris_image ada, jika belum ada tambahkan
+    $checkQris = $conn->query("SHOW COLUMNS FROM campaigns LIKE 'qris_image'");
+    $hasQrisColumn = $checkQris && $checkQris->num_rows > 0;
+    
+    if (!$hasQrisColumn) {
+        // Tambahkan kolom jika belum ada
+        $conn->query("ALTER TABLE campaigns ADD COLUMN qris_image VARCHAR(500) DEFAULT NULL AFTER image_url");
+        $hasQrisColumn = true;
+    }
+    
+    $currentStmt = $conn->prepare("SELECT image_url, qris_image FROM campaigns WHERE id = ?");
+    $currentStmt->bind_param("i", $id);
+    $currentStmt->execute();
+    $currentResult = $currentStmt->get_result();
+    $currentCampaign = $currentResult->fetch_assoc();
+    $currentStmt->close();
+    
+    $image_url = isset($currentCampaign['image_url']) && $currentCampaign['image_url'] !== null ? $currentCampaign['image_url'] : '';
+    $qris_image = isset($currentCampaign['qris_image']) && $currentCampaign['qris_image'] !== null ? $currentCampaign['qris_image'] : '';
+    
+    // Handle file upload if new image is uploaded
+    if (isset($_FILES['image_file']) && $_FILES['image_file']['error'] === 0) {
+        $uploadDir = '../uploads/campaigns/';
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+        
+        // Validasi file type
+        $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        $fileType = $_FILES['image_file']['type'];
+        
+        if (!in_array($fileType, $allowedTypes)) {
+            echo json_encode(['success' => false, 'message' => 'Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WEBP']);
+            $conn->close();
+            exit;
+        }
+        
+        // Validasi file size (max 5MB)
+        $maxSize = 5 * 1024 * 1024; // 5MB
+        if ($_FILES['image_file']['size'] > $maxSize) {
+            echo json_encode(['success' => false, 'message' => 'Ukuran file terlalu besar. Maksimal 5MB']);
+            $conn->close();
+            exit;
+        }
+        
+        // Generate unique filename
+        $fileExtension = pathinfo($_FILES['image_file']['name'], PATHINFO_EXTENSION);
+        $fileName = time() . '_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', basename($_FILES['image_file']['name'], '.' . $fileExtension)) . '.' . $fileExtension;
+        $targetPath = $uploadDir . $fileName;
+        
+        if (move_uploaded_file($_FILES['image_file']['tmp_name'], $targetPath)) {
+            // Delete old image if exists
+            if (!empty($image_url) && file_exists('../' . $image_url)) {
+                @unlink('../' . $image_url);
+            }
+            // Simpan path relatif dari root (tanpa ../)
+            $image_url = 'uploads/campaigns/' . $fileName;
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Gagal mengupload gambar. Pastikan folder uploads/campaigns/ memiliki permission write']);
+            $conn->close();
+            exit;
+        }
+    }
+    
+    // Handle QRIS file upload if new QRIS is uploaded
+    if (isset($_FILES['qris_file']) && $_FILES['qris_file']['error'] === 0) {
+        $uploadDir = '../uploads/campaigns/';
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+        
+        // Validasi file type
+        $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        $fileType = $_FILES['qris_file']['type'];
+        
+        if (!in_array($fileType, $allowedTypes)) {
+            echo json_encode(['success' => false, 'message' => 'Format file QRIS tidak didukung. Gunakan JPG, PNG, GIF, atau WEBP']);
+            $conn->close();
+            exit;
+        }
+        
+        // Validasi file size (max 5MB)
+        $maxSize = 5 * 1024 * 1024; // 5MB
+        if ($_FILES['qris_file']['size'] > $maxSize) {
+            echo json_encode(['success' => false, 'message' => 'Ukuran file QRIS terlalu besar. Maksimal 5MB']);
+            $conn->close();
+            exit;
+        }
+        
+        // Generate unique filename
+        $fileExtension = pathinfo($_FILES['qris_file']['name'], PATHINFO_EXTENSION);
+        $fileName = 'qris_' . time() . '_' . uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', basename($_FILES['qris_file']['name'], '.' . $fileExtension)) . '.' . $fileExtension;
+        $targetPath = $uploadDir . $fileName;
+        
+        if (move_uploaded_file($_FILES['qris_file']['tmp_name'], $targetPath)) {
+            // Delete old QRIS if exists
+            if (!empty($qris_image) && file_exists('../' . $qris_image)) {
+                @unlink('../' . $qris_image);
+            }
+            // Simpan path relatif dari root (tanpa ../)
+            $qris_image = 'uploads/campaigns/' . $fileName;
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Gagal mengupload QRIS. Pastikan folder uploads/campaigns/ memiliki permission write']);
+            $conn->close();
+            exit;
+        }
+    }
+    
+    // Update campaign (kolom qris_image sudah dipastikan ada di atas)
+    $stmt = $conn->prepare("UPDATE campaigns SET title = ?, description = ?, background = ?, target_amount = ?, deadline = ?, category = ?, image_url = ?, qris_image = ?, video_url = ? WHERE id = ?");
+    if (!$stmt) {
+        echo json_encode(['success' => false, 'message' => 'Error preparing statement: ' . $conn->error]);
+        $conn->close();
+        exit;
+    }
+    $stmt->bind_param("sssdsssssi", $title, $description, $background, $target_amount, $deadline, $category, $image_url, $qris_image, $video_url, $id);
     
     if ($stmt->execute()) {
         echo json_encode(['success' => true, 'message' => 'Campaign berhasil diupdate']);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Gagal mengupdate campaign']);
+        echo json_encode(['success' => false, 'message' => 'Gagal mengupdate campaign: ' . $stmt->error]);
     }
     $stmt->close();
 }
