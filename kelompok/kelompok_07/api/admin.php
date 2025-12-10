@@ -333,9 +333,10 @@ elseif ($action === 'delete_campaign') {
 }
 
 elseif ($action === 'list_donations') {
-    $stmt = $conn->prepare("SELECT d.*, c.title as campaign_title
+    $stmt = $conn->prepare("SELECT d.*, c.title as campaign_title, u.full_name as donor_name
                            FROM donations d
                            JOIN campaigns c ON d.campaign_id = c.id
+                           LEFT JOIN users u ON d.user_id = u.id
                            ORDER BY d.created_at DESC");
     $stmt->execute();
     $result = $stmt->get_result();
