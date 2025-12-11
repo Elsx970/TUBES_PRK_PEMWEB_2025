@@ -32,6 +32,10 @@ CareU adalah sebuah platform berbasis web yang dirancang untuk mendukung kegiata
 
 ---
 
+## ERD
+<img width="941" height="824" alt="erdtubes drawio 1" src="https://github.com/user-attachments/assets/fc26b026-a128-422e-9e59-f6ce0ec47b51" />
+
+
 ## 📁 Struktur Direktori
 
 <pre>
